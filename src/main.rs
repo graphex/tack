@@ -1,6 +1,7 @@
 use std::net::UdpSocket;
 use std::{str, fmt};
 use serde_json::Value;
+use serde_tuple::*;
 use smallvec::SmallVec;
 
 #[macro_use]
@@ -81,61 +82,129 @@ pub enum TempestMessage {
 pub struct EvtPrecip {
     serial_number: String,
     hub_sn: String,
-    evt: serde_json::Value,
+    evt: EvtPrecipEvt,
 }
 
 impl EvtPrecip {}
+
+#[derive(Serialize_tuple, Deserialize_tuple, Debug)]
+pub struct EvtPrecipEvt {
+    timestamp: i64,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EvtStrike {
     serial_number: String,
     hub_sn: String,
-    evt: serde_json::Value,
+    evt: EvtStrikeEvt,
 }
 
 impl EvtStrike {}
+
+#[derive(Serialize_tuple, Deserialize_tuple, Debug)]
+pub struct EvtStrikeEvt {
+    timestamp: i64,
+    distance: i16,
+    wind_direction: i32,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RapidWind {
     serial_number: String,
     hub_sn: String,
-    ob: serde_json::Value,
-    // timestamp: i64,
-    // wind_speed: f32,
-    // wind_direction: i16,
+    ob: RapidWindOb,
 }
 
 impl RapidWind {}
+
+#[derive(Serialize_tuple, Deserialize_tuple, Debug)]
+pub struct RapidWindOb {
+    timestamp: i64,
+    wind_speed: f32,
+    wind_direction: i16,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ObsAir {
     serial_number: String,
     hub_sn: String,
-    obs: serde_json::Value,
+    obs: Vec<ObsAirOb>,
     firmware_revision: i16,
 }
 
 impl ObsAir {}
 
+#[derive(Serialize_tuple, Deserialize_tuple, Debug)]
+pub struct ObsAirOb {
+    timestamp: i64,
+    station_pressure: f32,
+    air_temperature: f32,
+    relative_humidity: f32,
+    strike_count: u8,
+    strike_avg_distance: u8,
+    battery: f32,
+    report_interval: u8,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ObsSky {
     serial_number: String,
     hub_sn: String,
-    obs: serde_json::Value,
+    obs: Vec<ObsSkyOb>,
     firmware_revision: i16,
 }
 
 impl ObsSky {}
 
+#[derive(Serialize_tuple, Deserialize_tuple, Debug)]
+pub struct ObsSkyOb {
+    timestamp: i64,
+    illuminance: u16,
+    uv: f32,
+    rain_acc: f32,
+    wind_lull: f32,
+    wind_avg: f32,
+    wind_gust: f32,
+    wind_direction: i16,
+    battery: f32,
+    report_interval: u8,
+    solar_radiation: u16,
+    day_rain_acc: Option<u8>,
+    precip_type: u8,
+    wind_sample_interval: u16,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ObsSt {
     serial_number: String,
     hub_sn: String,
-    obs: serde_json::Value,
+    obs: Vec<ObsStOb>,
     firmware_revision: i16,
 }
 
 impl ObsSt {}
+
+#[derive(Serialize_tuple, Deserialize_tuple, Debug)]
+pub struct ObsStOb {
+    timestamp: i64,
+    wind_lull: f32,
+    wind_avg: f32,
+    wind_gust: f32,
+    wind_direction: i16,
+    wind_sample_interval: u16,
+    station_pressure: f32,
+    air_temperature: f32,
+    relative_humidity: f32,
+    illuminance: u16,
+    uv: f32,
+    solar_radiation: u16,
+    precip_acc: f32,
+    precip_type: u8,
+    strike_avg_distance: u8,
+    strike_count: u8,
+    battery: f32,
+    report_interval: u8,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeviceStatus {
