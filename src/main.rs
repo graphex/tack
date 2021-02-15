@@ -1,8 +1,10 @@
 use std::net::UdpSocket;
-use std::{str, fmt};
+use std::str;
 use serde_json::Value;
 use serde_tuple::*;
-use smallvec::SmallVec;
+// use serde::Serialize;
+// use std::collections::HashMap;
+use core::fmt;
 
 #[macro_use]
 extern crate serde_derive;
@@ -24,47 +26,71 @@ fn main() -> std::io::Result<()> {
             let msg = str::from_utf8(&buf).unwrap();
             println!("{}: {}", src, msg);
 
-            let v: Value = serde_json::from_str(msg)?;
+            let v: Value = serde_json::from_str(&msg)?;
             let tempest_message = Some(serde_json::from_value::<TempestMessage>(v)?);
-            tempest_message.map(|tm| println!("{:?}", tm));
+
+            match tempest_message {
+                Some(TempestMessage::RapidWind(rw)) => println!("{}", rw.to_lpr()),
+                Some(TempestMessage::ObsSt(obsSt)) => println!("{}", obsSt.to_lpr()),
+                Some(tm) => println!("{:?}", tm),
+                _ => (),
+            };
         }
     } // the socket is closed here
     // Ok(())
 }
 
-/*#[derive(Serialize, Deserialize, Debug)]
-#[serde()]
-struct TempestObs<'a> {
-    serial_number: String,
-    r#type: String,
-    hub_sn: String,
-    firmware_revision: Option<i8>,
-    ob: Value,
-    obs: Value,
-    evt: Value,
-    timestamp: i64,
-    //seconds
-    observation: FieldSet<'a>,
-    event: FieldSet<'a>,
-}
+struct LprVec(Vec<Lpr>);
 
-impl fmt::Display for TempestObs {
+impl fmt::Display for LprVec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} serial_number={} {}", self.r#type, self.serial_number, "observation=1")
+        write!(f, "{}", self.0.iter().map(|l| l.to_string()).collect::<Vec<String>>().join("\n"))
     }
 }
 
-pub type FieldSet<'a> = SmallVec<[(String, FieldValue<'a>); 4]>;
+#[derive(Deserialize, Debug)]
+#[serde()]
+struct Lpr {
+    measurement: String,
+    tags: Vec<(String, String)>,
+    fields: Vec<(String, FieldValue)>,
+    timestamp: i64,
+}
 
-pub enum FieldValue<'a> {
+impl fmt::Display for Lpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let tag_str = self.tags.iter()
+            .map(|(k, v)| format!("{}={}", k, v))
+            .collect::<Vec<String>>()
+            .join(",");
+        let field_str = self.fields.iter()
+            .map(|(k, v)| format!("{}={}", k, v))
+            .collect::<Vec<String>>()
+            .join(",");
+        write!(f, "{},{} {} {}", self.measurement, tag_str, field_str, self.timestamp)
+    }
+}
+
+#[derive(Deserialize, Debug)]
+pub enum FieldValue {
     I64(i64),
     F64(f64),
-    String(&'a str),
+    String(String),
     Boolean(bool),
-}*/
+}
 
+impl fmt::Display for FieldValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FieldValue::I64(v) => write!(f, "{}", v),
+            FieldValue::F64(v) => write!(f, "{:.2}", v),
+            FieldValue::String(v) => write!(f, "{}", v),
+            FieldValue::Boolean(v) => write!(f, "{}", v),
+        }
+    }
+}
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum TempestMessage {
     EvtPrecip(EvtPrecip),
@@ -78,7 +104,7 @@ pub enum TempestMessage {
 }
 
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct EvtPrecip {
     serial_number: String,
     hub_sn: String,
@@ -87,12 +113,12 @@ pub struct EvtPrecip {
 
 impl EvtPrecip {}
 
-#[derive(Serialize_tuple, Deserialize_tuple, Debug)]
+#[derive(Deserialize_tuple, Debug)]
 pub struct EvtPrecipEvt {
     timestamp: i64,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct EvtStrike {
     serial_number: String,
     hub_sn: String,
@@ -101,21 +127,19 @@ pub struct EvtStrike {
 
 impl EvtStrike {}
 
-#[derive(Serialize_tuple, Deserialize_tuple, Debug)]
+#[derive(Deserialize_tuple, Debug)]
 pub struct EvtStrikeEvt {
     timestamp: i64,
     distance: i16,
     wind_direction: i32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct RapidWind {
     serial_number: String,
     hub_sn: String,
     ob: RapidWindOb,
 }
-
-impl RapidWind {}
 
 #[derive(Serialize_tuple, Deserialize_tuple, Debug)]
 pub struct RapidWindOb {
@@ -124,7 +148,25 @@ pub struct RapidWindOb {
     wind_direction: i16,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+impl RapidWind {
+    fn to_lpr(&self) -> LprVec {
+        LprVec(vec!(Lpr {
+            measurement: String::from("RapidWind"),
+            tags: vec!(
+                (String::from("serial_number"), self.serial_number.clone()),
+                (String::from("hub_sn"), self.hub_sn.clone()),
+            ),
+            fields: vec!(
+                (String::from("wind_speed"), FieldValue::F64(f64::from(self.ob.wind_speed))),
+                (String::from("wind_direction"), FieldValue::I64(i64::from(self.ob.wind_direction))),
+            ),
+            timestamp: self.ob.timestamp,
+        }))
+    }
+}
+
+
+#[derive(Deserialize, Debug)]
 pub struct ObsAir {
     serial_number: String,
     hub_sn: String,
@@ -134,7 +176,7 @@ pub struct ObsAir {
 
 impl ObsAir {}
 
-#[derive(Serialize_tuple, Deserialize_tuple, Debug)]
+#[derive(Deserialize_tuple, Debug)]
 pub struct ObsAirOb {
     timestamp: i64,
     station_pressure: f32,
@@ -146,7 +188,7 @@ pub struct ObsAirOb {
     report_interval: u8,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct ObsSky {
     serial_number: String,
     hub_sn: String,
@@ -156,10 +198,10 @@ pub struct ObsSky {
 
 impl ObsSky {}
 
-#[derive(Serialize_tuple, Deserialize_tuple, Debug)]
+#[derive(Deserialize_tuple, Debug)]
 pub struct ObsSkyOb {
     timestamp: i64,
-    illuminance: u16,
+    illuminance: u32,
     uv: f32,
     rain_acc: f32,
     wind_lull: f32,
@@ -174,7 +216,7 @@ pub struct ObsSkyOb {
     wind_sample_interval: u16,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct ObsSt {
     serial_number: String,
     hub_sn: String,
@@ -182,9 +224,7 @@ pub struct ObsSt {
     firmware_revision: i16,
 }
 
-impl ObsSt {}
-
-#[derive(Serialize_tuple, Deserialize_tuple, Debug)]
+#[derive(Deserialize_tuple, Debug)]
 pub struct ObsStOb {
     timestamp: i64,
     wind_lull: f32,
@@ -192,10 +232,10 @@ pub struct ObsStOb {
     wind_gust: f32,
     wind_direction: i16,
     wind_sample_interval: u16,
-    station_pressure: f32,
+    station_pressure: Option<f32>,
     air_temperature: f32,
     relative_humidity: f32,
-    illuminance: u16,
+    illuminance: u32,
     uv: f32,
     solar_radiation: u16,
     precip_acc: f32,
@@ -206,7 +246,31 @@ pub struct ObsStOb {
     report_interval: u8,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+impl ObsSt {
+    fn to_lpr(&self) -> LprVec {
+        let lprs = self.obs.iter().map(|ob|
+            Lpr {
+                measurement: String::from("ObsSt"),
+                tags: vec!(
+                    (String::from("serial_number"), self.serial_number.clone()),
+                    (String::from("hub_sn"), self.hub_sn.clone()),
+                    (String::from("firmware_revision"), self.firmware_revision.clone().to_string()),
+                ),
+                fields: vec!(
+                    (String::from("wind_lull"), FieldValue::F64(f64::from(ob.wind_lull))),
+                    (String::from("wind_avg"), FieldValue::F64(f64::from(ob.wind_avg))),
+                    (String::from("wind_gust"), FieldValue::F64(f64::from(ob.wind_gust))),
+                    (String::from("wind_direction"), FieldValue::I64(i64::from(ob.wind_direction))),
+                    (String::from("wind_sample_interval"), FieldValue::I64(i64::from(ob.wind_sample_interval))),
+                ),
+                timestamp: ob.timestamp,
+            }
+        );
+        LprVec(lprs.collect())
+    }
+}
+
+#[derive(Deserialize, Debug)]
 pub struct DeviceStatus {
     serial_number: String,
     hub_sn: String,
@@ -222,7 +286,7 @@ pub struct DeviceStatus {
 
 impl DeviceStatus {}
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct HubStatus {
     serial_number: String,
     firmware_revision: String,
