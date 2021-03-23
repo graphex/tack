@@ -22,7 +22,7 @@ extern crate serde_json;
 #[actix::main]
 async fn main() {
     // let mut system = actix::System::new();
-    let recvr = ReceiverActor.start();
+    let recvr = ReceiverActor::new().start();
     recvr.do_send(Listen);
 
     tokio::signal::ctrl_c().await.unwrap();
