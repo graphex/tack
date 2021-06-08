@@ -236,10 +236,10 @@ pub struct ObsSt {
 #[derive(Deserialize_tuple, Debug)]
 pub struct ObsStOb {
     timestamp: i64,
-    wind_lull: f32,
-    wind_avg: f32,
-    wind_gust: f32,
-    wind_direction: i16,
+    wind_lull: Option<f32>,
+    wind_avg: Option<f32>,
+    wind_gust: Option<f32>,
+    wind_direction: Option<i16>,
     wind_sample_interval: u16,
     station_pressure: Option<f32>,
     air_temperature: f32,
@@ -266,10 +266,6 @@ impl LprConvertable for ObsSt {
                     (String::from("firmware_revision"), self.firmware_revision.clone().to_string()),
                 ),
                 fields: vec!(
-                    (String::from("wind_lull"), FieldValue::F64(f64::from(ob.wind_lull))),
-                    (String::from("wind_avg"), FieldValue::F64(f64::from(ob.wind_avg))),
-                    (String::from("wind_gust"), FieldValue::F64(f64::from(ob.wind_gust))),
-                    (String::from("wind_direction"), FieldValue::I64(i64::from(ob.wind_direction))),
                     (String::from("wind_sample_interval"), FieldValue::I64(i64::from(ob.wind_sample_interval))),
                     (String::from("air_temperature"), FieldValue::F64(f64::from(ob.air_temperature))),
                     (String::from("relative_humidity"), FieldValue::F64(f64::from(ob.relative_humidity))),
@@ -285,9 +281,24 @@ impl LprConvertable for ObsSt {
                 ),
                 timestamp: ob.timestamp,
             };
-            ob.station_pressure.map(|sp| cur_lpr.fields.push(
-                (String::from("station_pressure"), FieldValue::F64(f64::from(sp))),
+            let mut opts: Vec<(String, FieldValue)> = vec![];
+            ob.wind_lull.map(|v| opts.push(
+                (String::from("wind_lull"), FieldValue::F64(f64::from(v))),
             ));
+            ob.wind_avg.map(|v| opts.push(
+                (String::from("wind_avg"), FieldValue::F64(f64::from(v))),
+            ));
+            ob.wind_gust.map(|v| opts.push(
+                (String::from("wind_gust"), FieldValue::F64(f64::from(v))),
+            ));
+            ob.wind_direction.map(|v| opts.push(
+                (String::from("wind_direction"), FieldValue::F64(f64::from(v))),
+            ));
+            cur_lpr.fields = opts.into_iter().chain(cur_lpr.fields.into_iter()).collect();
+            ob.station_pressure.map(|v| cur_lpr.fields.push(
+                (String::from("station_pressure"), FieldValue::F64(f64::from(v))),
+            ));
+
             cur_lpr
         });
         LprVec(lprs.collect())
