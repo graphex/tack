@@ -11,7 +11,7 @@ with the TLS being terminated in the ingress.
 The intent is mostly to have a way to stream the data out to InfluxDB, but I'm also using it to exercise a local installation of Influx IOx and foster potential new API development (gRPC, etc.).
 ```shell
 curl --request POST \
-"https://influxdb.gfx.tc/api/v2/write?org=$INFLUX_ORG_ID&bucket=tempest&precision=s" \
+"https://$INFLUX_HOST/api/v2/write?org=$INFLUX_ORG_ID&bucket=tempest&precision=s" \
   --header "Authorization: Token $INFLUX_TOKEN" \
   --header "Content-Type: text/plain; charset=utf-8" \
   --header "Accept: application/json" \
