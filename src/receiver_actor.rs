@@ -1,9 +1,10 @@
 use std::error::Error;
 use std::str;
+use std::env;
 use bytes::Bytes;
 use bytes::BytesMut;
 use actix::io::SinkWrite;
-use actix::{Actor, Addr, AsyncContext, Context, System};
+use actix::*;
 use actix::prelude::*;
 use serde_json::Value;
 use tokio::net::UdpSocket;
@@ -14,14 +15,9 @@ use crate::tempest_messages::*;
 use crate::line_protocol::LprConvertable;
 use futures::StreamExt;
 use std::net::SocketAddr;
+use crate::{SenderActor, SendTempestDatum};
 
 pub struct ReceiverActor;
-
-impl ReceiverActor {
-    pub fn new() -> ReceiverActor {
-        ReceiverActor
-    }
-}
 
 #[derive(Message)]
 #[rtype(result = "()")]
@@ -34,7 +30,7 @@ pub struct ReceiveDatagram(BytesMut, SocketAddr);
 impl Actor for ReceiverActor {
     type Context = Context<Self>;
     fn started(&mut self, ctx: &mut Self::Context) {
-        println!("Hello, world!");
+        println!("ReceiverActor Started");
     }
 }
 
@@ -46,8 +42,12 @@ impl StreamHandler<ReceiveDatagram> for ReceiverActor {
         let v: Value = serde_json::from_str(&msg).unwrap();
         let tempest_message = Some(serde_json::from_value::<TempestMessage>(v).unwrap());
         match tempest_message {
-            Some(tm) => println!("{}", tm.to_lpr()),
-            _ => (),
+            Some(tm) => {
+                println!("{}", tm.to_lpr());
+                let addr: Addr<SenderActor> = SenderActor::from_registry();
+                addr.do_send(SendTempestDatum { tempest_message: tm })
+            },
+            _ => println!("Unserializable message: {}", msg.to_string()),
         };
     }
 }

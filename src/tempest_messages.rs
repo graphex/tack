@@ -366,7 +366,7 @@ impl LprConvertable for HubStatus {
             fields: vec!(
                 (String::from("uptime"), FieldValue::I64(i64::from(self.uptime))),
                 (String::from("rssi"), FieldValue::I64(i64::from(self.rssi))),
-                (String::from("reset_flags"), FieldValue::String(self.reset_flags.clone().to_string())),
+                // (String::from("reset_flags"), FieldValue::String(self.reset_flags.clone().to_string())),
                 (String::from("seq"), FieldValue::I64(i64::from(self.seq))),
             ),
             timestamp: self.timestamp,

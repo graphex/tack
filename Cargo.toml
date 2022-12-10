@@ -1,13 +1,13 @@
 [package]
 name = "tack"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Sean McKibben <graphex@graphex.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-actix = "0.11"
+actix = "0.13.0"
 serde = "1.0"
 serde_json = "1.0"
 serde_tuple = "0.5"
@@ -17,3 +17,5 @@ tokio = "1.4.0"
 tokio-util = { version = "0.6.5", features = [ "codec", "net" ] }
 futures = "0.3.13"
 bytes = "1.0.1"
+reqwest = "0.11.12"
+ockam = { version = "0", features = ["ockam_transport_tcp", "ockam_vault"] }
