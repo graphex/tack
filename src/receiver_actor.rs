@@ -1,21 +1,17 @@
-use std::error::Error;
+use std::net::SocketAddr;
 use std::str;
-use std::env;
-use bytes::Bytes;
-use bytes::BytesMut;
-use actix::io::SinkWrite;
+
 use actix::*;
-use actix::prelude::*;
+use bytes::BytesMut;
+use futures::StreamExt;
 use serde_json::Value;
 use tokio::net::UdpSocket;
-use tokio_util::udp::UdpFramed;
 use tokio_util::codec::BytesCodec;
+use tokio_util::udp::UdpFramed;
 
-use crate::tempest_messages::*;
-use crate::line_protocol::LprConvertable;
-use futures::StreamExt;
-use std::net::SocketAddr;
 use crate::{SenderActor, SendTempestDatum};
+use crate::line_protocol::LprConvertable;
+use crate::tempest_messages::*;
 
 pub struct ReceiverActor;
 
@@ -29,13 +25,13 @@ pub struct ReceiveDatagram(BytesMut, SocketAddr);
 
 impl Actor for ReceiverActor {
     type Context = Context<Self>;
-    fn started(&mut self, ctx: &mut Self::Context) {
-        println!("ReceiverActor Started");
-    }
+    // fn started(&mut self, ctx: &mut Self::Context) {
+    //     println!("ReceiverActor Started");
+    // }
 }
 
 impl StreamHandler<ReceiveDatagram> for ReceiverActor {
-    fn handle(&mut self, msg: ReceiveDatagram, ctx: &mut Self::Context) {
+    fn handle(&mut self, msg: ReceiveDatagram, _ctx: &mut Self::Context) {
         // println!("Received: ({:?}, {:?})", msg.0, msg.1);
         let msg = str::from_utf8(msg.0.as_ref()).unwrap();
         // println!("Raw: {}", msg.to_string());
@@ -54,7 +50,7 @@ impl StreamHandler<ReceiveDatagram> for ReceiverActor {
 
 impl Handler<Listen> for ReceiverActor {
     type Result = ();
-    fn handle(&mut self, msg: Listen, ctx: &mut Context<Self>) {
+    fn handle(&mut self, _msg: Listen, ctx: &mut Context<Self>) {
         /*
         docker likes to take over this port, see `sudo lsof -i:50222`
         let addr: SocketAddr = "0.0.0.0:50222".parse().unwrap();
@@ -63,7 +59,7 @@ impl Handler<Listen> for ReceiverActor {
         and converting it to a tokio socket instead
         */
         let std_socket = std::net::UdpSocket::bind("0.0.0.0:50222").unwrap();
-        std_socket.set_nonblocking(true);
+        std_socket.set_nonblocking(true).unwrap();
         let socket = UdpSocket::from_std(std_socket).unwrap();
         let (_, stream) = UdpFramed::new(socket, BytesCodec::new()).split();
         ctx.add_stream(stream.filter_map(

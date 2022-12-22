@@ -1,9 +1,10 @@
-use actix::prelude::*;
-use std::time::Duration;
 use std::env;
-use crate::tempest_messages::*;
+
+use actix::prelude::*;
 use reqwest;
+
 use crate::LprConvertable;
+use crate::tempest_messages::*;
 
 #[derive(Debug, Default)]
 pub struct SenderActor;
@@ -15,7 +16,7 @@ pub struct SendTempestDatum {
 }
 impl Actor for SenderActor {
     type Context = Context<Self>;
-    fn started(&mut self, ctx: &mut Self::Context) {
+    fn started(&mut self, _ctx: &mut Self::Context) {
         println!("SenderActor Started");
     }
 }
@@ -65,9 +66,24 @@ impl Handler<SendTempestDatum> for SenderActor {
                 ctx.spawn(response.then(|result, _, _| {
                     match result {
                         Ok(response) => {
+                            use std::io::Write;
+                            use std::fs::OpenOptions;
                             // Print the response body
                             println!("Response body: {:?}", response.status());
-                        }
+                            // Get the current time as a Unix timestamp
+                            let timestamp = std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_secs()
+                                .to_string();
+                            // Open the file in write mode, creating it if it does not exist
+                            let mut file = OpenOptions::new()
+                                .write(true)
+                                .create(true)
+                                .open("/tmp/last_reading.txt").unwrap();
+
+                            // Write the timestamp to the file
+                            file.write_all(timestamp.as_bytes()).unwrap();                        }
                         Err(e) => {
                             // Print the error message
                             println!("Error: {}", e);

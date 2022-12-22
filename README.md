@@ -22,3 +22,9 @@ curl --request POST \
     '
 ```
 This project uses Actix Actors to allow the different parts to execute concurrently and so that it is able to be easily adapted for the other uses I have in mind, like displaying temperature and wind data on my nixie tube clock.
+
+Building and pushing.
+make sure `DOCKER_USERNAME` is set first, then:
+```shell
+make build push
+```

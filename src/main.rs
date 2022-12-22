@@ -1,14 +1,12 @@
-use std::net::UdpSocket;
-use std::str;
-use actix::{Actor, Addr, Context, Registry, System};
-use serde_json::Value;
-use std::error::Error;
-use actix::prelude::*;
-use tokio::io::WriteHalf;
-use tokio::net::TcpStream;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_json;
+
+use actix::{Actor, System};
+use tokio::select;
+use tokio::signal::unix::SignalKind;
 
 use crate::line_protocol::*;
-use crate::tempest_messages::*;
 use crate::receiver_actor::*;
 use crate::sender_actor::*;
 
@@ -17,17 +15,41 @@ mod tempest_messages;
 mod receiver_actor;
 mod sender_actor;
 
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-
 #[actix::main]
 async fn main() {
-    let sendr = SenderActor.start();
+    let _sendr = SenderActor.start();
     let recvr = ReceiverActor.start();
+
     recvr.do_send(Listen);
-    tokio::signal::ctrl_c().await.unwrap();
-    println!("Ctrl-C received, shutting down");
-    System::current().stop();
+
+    let ctl_c_watch = tokio::signal::ctrl_c();
+    let mut sigterm_watch = tokio::signal::unix::signal(SignalKind::terminate()).unwrap();
+    let mut sighup_watch = tokio::signal::unix::signal(SignalKind::hangup()).unwrap();
+    //OK, you can't register for SIGKILLs
+    // let mut sigkill_watch = tokio::signal::unix::signal(SignalKind::from_raw(9)).unwrap();
+
+    select! {
+        _ = ctl_c_watch => {
+            println!("Ctrl-C received, shutting down");
+            stop_program();
+        },
+        _ = sigterm_watch.recv() => {
+            println!("SIGTERM received, shutting down");
+            stop_program();
+        }
+        _ = sighup_watch.recv() => {
+            println!("SIGHUP received, shutting down");
+            stop_program();
+        }
+        // _ = sigkill_watch.recv() => {
+        //     println!("SIGKILL received, shutting down");
+        //     stop_program();
+        // }
+    }
+
+    fn stop_program() {
+        System::current().stop();
+    }
+
 }
 

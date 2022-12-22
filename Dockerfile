@@ -27,8 +27,8 @@ RUN groupadd $APP_USER \
     && mkdir -p ${APP}
 
 COPY --from=builder /tack/target/release/tack ${APP}/tack
-
-RUN chown -R $APP_USER:$APP_USER ${APP}
+COPY ./scripts/healthcheck.sh ${APP}/healthcheck.sh
+RUN chown -R $APP_USER:$APP_USER ${APP} && chmod u+x ${APP}/healthcheck.sh
 
 USER $APP_USER
 WORKDIR ${APP}

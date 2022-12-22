@@ -174,6 +174,7 @@ pub struct ObsSky {
     firmware_revision: i16,
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize_tuple, Debug)]
 pub struct ObsSkyOb {
     timestamp: i64,
@@ -305,6 +306,7 @@ impl LprConvertable for ObsSt {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 pub struct DeviceStatus {
     serial_number: String,
@@ -340,6 +342,7 @@ impl LprConvertable for DeviceStatus {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 pub struct HubStatus {
     serial_number: String,
